@@ -16,7 +16,8 @@ URLS = {
     'PennTreebank':
         ['https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.train.txt',
          'https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.test.txt',
-         'https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.valid.txt']
+         'https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.valid.txt'],
+    'WMTNewsCrawl': 'http://www.statmt.org/wmt11/training-monolingual-news-2011.tgz'
 }
 
 
@@ -27,6 +28,7 @@ class LanguageModelingDataset(torch.utils.data.Dataset):
              - WikiText2
              - WikiText103
              - PennTreebank
+             - WMTNewsCrawl
 
     """
 
@@ -74,7 +76,7 @@ def _get_datafile_path(key, extracted_files):
 
 def _setup_datasets(dataset_name, tokenizer=get_tokenizer("basic_english"),
                     root='.data', vocab=None, removed_tokens=[],
-                    data_select=('train', 'test', 'valid')):
+                    data_select=('train', 'test', 'valid'), **kwargs):
 
     if isinstance(data_select, str):
         data_select = [data_select]
@@ -89,6 +91,12 @@ def _setup_datasets(dataset_name, tokenizer=get_tokenizer("basic_english"),
     else:
         dataset_tar = download_from_url(URLS[dataset_name], root=root)
         extracted_files = [os.path.join(root, d) for d in extract_archive(dataset_tar)]
+
+    if dataset_name == "WMTNewsCrawl":
+        data_select = ('train',)
+        language = kwargs.get('language', 'en')
+        fname = 'news.2011.{}.shuffled'.format(language)
+        extracted_files = [f for f in extracted_files if fname in f]
 
     _path = {}
     for item in data_select:
@@ -239,3 +247,37 @@ def PennTreebank(*args, **kwargs):
     """
 
     return _setup_datasets(*(("PennTreebank",) + args), **kwargs)
+
+
+def WMTNewsCrawl(*args, **kwargs):
+    """ Defines WMT News Crawl.
+
+        Create language modeling dataset: WMTNewsCrawl
+        Creates a training set only
+
+        Arguments:
+            tokenizer: the tokenizer used to preprocess raw text data.
+                The default one is basic_english tokenizer in fastText. spacy tokenizer
+                is supported as well (see example below). A custom tokenizer is callable
+                function with input of a string and output of a token list.
+            root: Directory where the datasets are saved. Default: ".data"
+            vocab: Vocabulary used for dataset. If None, it will generate a new
+                vocabulary based on the train data set.
+            removed_tokens: removed tokens from output dataset (Default: [])
+            language: language for dataset (Default: en)
+
+        Examples:
+            >>> from torchtext.experimental.datasets import PennTreebank
+            >>> from torchtext.data.utils import get_tokenizer
+            >>> tokenizer = get_tokenizer("spacy")
+        """
+    return _setup_datasets(*(("WMTNewsCrawl",) + args), **kwargs)
+
+
+if __name__ == "__main__":
+    from datetime import datetime
+    print(datetime.now())
+    tokenizer = get_tokenizer("spacy")
+    # train_dataset, *yes = WikiText2(tokenizer=tokenizer)
+    train_dataset, *yes = WMTNewsCrawl(tokenizer=tokenizer, language="en")
+    print(datetime.now())
